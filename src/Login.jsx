@@ -7,7 +7,7 @@ function Login({ setIsLoggedIn }) {
 const handleLogin = async (e) => {
   e.preventDefault();
 
-const API = "http://localhost:5000";
+const API = "https://fintech-digital-economy-1.onrender.com";
 
   const cleanEmail = email.trim();
   const cleanPassword = password.trim();
