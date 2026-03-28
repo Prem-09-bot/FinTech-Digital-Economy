@@ -217,7 +217,7 @@ backgroundColor: "#0e652e"
 ]
 };
 
-const goal = 1000;
+const goal = 10000000;
 
 const goalData = {
   labels: ["Saved", "Remaining"],
