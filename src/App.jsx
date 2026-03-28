@@ -316,6 +316,11 @@ Logout
 
 <div className="flex-1">
 
+  {/*Floating Add button*/}
+<button className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full text-3xl shadow-lg transition">
++
+</button>
+
 {/* Navbar */}
 <div className="glass shadow-lg p-4 flex justify-between items-center">
 <h2 className="text-xl font-semibold">Smart Savings Dashboard</h2>
@@ -329,11 +334,6 @@ Logout
   <h1 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4">Dashboard</h1>
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"></div>
 </div>
-
-{/*Floating Add button*/}
-<button className="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white w-14 h-14 rounded-full text-3xl shadow-lg transition">
-+
-</button>
 
 <div className="p-6">
 
