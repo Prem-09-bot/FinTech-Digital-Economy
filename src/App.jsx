@@ -38,7 +38,7 @@ Legend
 
 function App(){
 
-const API ="http://localhost:5000";
+const API ="https://fintech-digital-economy-1.onrender.com";
 console.log("API BASE URL:", API);
 const [transactions,setTransactions] = useState([]);
 const safeTransactions = Array.isArray(transactions) ? transactions : [];
