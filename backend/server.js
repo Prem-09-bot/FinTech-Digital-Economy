@@ -64,6 +64,7 @@ const authMiddleware = (req, res, next) => {
 // 🔐 REGISTER
 // =====================
 app.post("/register", async (req, res) => {
+   console.log("REGISTER BODY:", req.body);
   try {
     const { email, password } = req.body;
 
@@ -89,29 +90,38 @@ app.post("/register", async (req, res) => {
 // 🔐 LOGIN
 // =====================
 app.post("/login", async (req, res) => {
-  console.log("RAW BODY:", req.body);
-  console.log("TYPE:", typeof req.body.email);
+  try {
+    const email = String(req.body.email).trim().toLowerCase();
+    const password = String(req.body.password).trim();
 
-  const email = req.body.email?.trim();
-  const password = req.body.password?.trim();
+    console.log("LOGIN:", email, password);
 
-  console.log("FINAL EMAIL:", `"${email}"`);
-  console.log("FINAL PASSWORD:", `"${password}"`);
+    const user = await User.findOne({ email });
+    console.log("USER FOUND:", user);
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
 
-  if (email === "admin@gmail.com" && password === "1234") {
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("MATCH:", isMatch);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
     const token = jwt.sign(
-      { id: "test-user" },
+      { id: user._id },   // 🔥 MUST be id
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    return res.json({ token });
-  }
 
-  return res.status(400).json({ message: "Invalid credentials" });
+    res.json({ token });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // =====================
@@ -145,7 +155,11 @@ app.get("/subscriptions", authMiddleware, async (req, res) => {
 // Transactions (Protected)
 app.post("/transactions", authMiddleware, async (req,res)=>{
 
-  const {amount} = req.body;
+  const { amount } = req.body;
+
+  if (!amount) {
+    return res.status(400).json({ message: "Amount required" });
+  }
 
   const saving = Math.ceil(amount) - amount;
 
@@ -157,15 +171,20 @@ app.post("/transactions", authMiddleware, async (req,res)=>{
   });
 
   await transaction.save();
+  console.log("POST USER ID:", req.userId);
+  console.log("SAVED:", transaction); // 👈 debug
+
   res.json(transaction);
 });
 
 app.get("/transactions", authMiddleware, async (req,res)=>{
+  console.log("USER ID:", req.userId);
   const transactions = await Transaction.find({ userId: req.userId });
+  console.log ("FOUND:", transactions);
   res.json(transactions);
 });
 
-app.delete("/clear", authMiddleware, async(req, res)=>{
+app.delete("/transactions", authMiddleware, async (req, res) => {
   await Transaction.deleteMany({ userId: req.userId });
   res.send("Transactions cleared!");
 });

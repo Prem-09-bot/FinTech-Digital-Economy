@@ -38,34 +38,73 @@ Legend
 
 function App(){
 
-const API = "http://localhost:5000";
+const API ="http://localhost:5000";
 console.log("API BASE URL:", API);
 const [transactions,setTransactions] = useState([]);
 const safeTransactions = Array.isArray(transactions) ? transactions : [];
-const [amount,setAmount] = useState("");
-const todaySavings = safeTransactions.reduce((total, t) => total + Number(t.saved || 0), 0).toFixed(2);
+
 const [subscriptions, setSubscriptions] = useState([]);
+const safeSubscriptions = Array.isArray(subscriptions) ? subscriptions : [];
+
+const [amount,setAmount] = useState("");
+
+const totalSubscription = safeSubscriptions.reduce((sum, sub) => sum + Number(sub.amount || 0),0);
+
+const today = new Date().toDateString();
+
+const todaySavings = safeTransactions.length
+  ? safeTransactions
+      .filter(t => new Date(t.date).toDateString() === today)
+      .reduce((total, t) => total + Number(t.amount || 0), 0)
+  : 0;
 const [loading, setLoading] = useState(false);
 const [menuOpen, setMenuOpen] = useState(false);
 const [darkMode, setDarkMode] = useState(false);
 const [streak, setStreak] = useState(0);
-const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [isLoggedIn, setIsLoggedIn] = useState(
+  !!localStorage.getItem("token")
+);
 
 
 //fetch Transcation
 const fetchTransactions = useCallback(async () => {
+  const token = localStorage.getItem("token");
+
+  console.log("TOKEN IN FETCH:", token);
+
+  if (!token) {
+    console.log("No token → skipping fetch");
+    return;
+  }
+
   const res = await fetch(`${API}/transactions`, {
     headers: {
-      "Authorization": "Bearer " + localStorage.getItem("token")
-    }
+      Authorization: "Bearer " + token,
+    },
   });
 
-  const data = await res.json();
-  setTransactions(Array.isArray(data) ? data : []);
-}, [API]);
+  if (res.status === 401) {
+    console.log("Unauthorized → logging out");
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+    return;
+  }
 
+  const data = await res.json();
+  console.log("Fetched Transactions:", data);
+
+  if (Array.isArray(data)) {
+    console.log("SETTING TRANSACTIONS:", data);
+    setTransactions(data);
+  } else {
+    console.log("Invalid response:", data);
+    setTransactions([]);
+  }
+}, [API]);
 //fetch Subscriptions
 const fetchSubscriptions = useCallback(async () => {
+  const token = localStorage.getItem("token");
+if (!token) return;
   setLoading(true);
   try {
     const res = await fetch(`${API}/subscriptions`, {
@@ -73,8 +112,17 @@ const fetchSubscriptions = useCallback(async () => {
         "Authorization": "Bearer " + localStorage.getItem("token")
       }
     });
+    if (res.status === 401) {
+  localStorage.removeItem("token");
+  setIsLoggedIn(false);
+}
 
-    const data = await res.json();
+   let data = [];
+try {
+  data = await res.json();
+} catch (err) {
+  console.error("Invalid JSON:", err);
+}
     setSubscriptions(Array.isArray(data) ? data : []);
   } catch (err) {
     console.log(err);
@@ -85,14 +133,23 @@ const fetchSubscriptions = useCallback(async () => {
 
 useEffect(() => {
   if (isLoggedIn) {
-    fetchTransactions();
+    fetchTransactions(); 
     fetchSubscriptions();
   }
-}, [isLoggedIn, fetchTransactions, fetchSubscriptions]);
+}, []);
+
+useEffect(() => {
+  console.log("Transactions:", transactions);
+}, []);
+
+useEffect(() => {
+  console.log("RAW transactions:", transactions);
+  console.log("COUNT:", transactions.length);
+}, []);
+
 
 //Add Transaction
 const addTransaction = async () => {
-
   if (!amount || isNaN(amount)) {
     alert("Enter valid amount");
     return;
@@ -102,10 +159,14 @@ const addTransaction = async () => {
     method:"POST",
     headers:{
       "Content-Type":"application/json",
-      "Authorization": "Bearer " + localStorage.getItem("token") // ✅ also needed
+      "Authorization": "Bearer " + localStorage.getItem("token")
     },
     body:JSON.stringify({amount})
   });
+
+  const data = await res.json();
+  console.log("FETCH RESPONSE:", data);
+  console.log("POST RESPONSE:", data); // 🔥 ADD THIS
 
   if (res.ok) {
     setAmount("");
@@ -143,14 +204,14 @@ function getPredictionAdvice(totalSpending) {
 }
 
 const totalSavings =
-safeTransactions.reduce((sum, t) => sum + Number(t.saved || 0), 0);
+safeTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
 const chartData = {
 labels: safeTransactions.map((t,i)=>"T"+(i+1)),
 datasets:[
 {
 label:"Savings",
-data: safeTransactions.map(t=>t.saved),
+data: safeTransactions.map(t=>t.amount),
 backgroundColor: "#0e652e"
 }
 ]
@@ -167,22 +228,33 @@ const goalData = {
     },
   ],
 };
-const safeSubscriptions = Array.isArray(subscriptions) ? subscriptions : [];
-
-const totalSubscription = safeSubscriptions.reduce(
-  (sum, sub) => sum + Number(sub.amount || 0),
-  0
-);
-
 const predictedSpending = totalSubscription + totalSavings;
 
 const progress =(totalSavings/goal)*100;
 
 useEffect(() => {
-  if (safeTransactions.length > 5) {
-      setStreak(safeTransactions.length);
+  const dates = safeTransactions
+    .filter(t => t.date) // safety
+    .map(t => new Date(t.date).toDateString())
+    .filter((v, i, a) => a.indexOf(v) === i) // unique days
+    .sort((a, b) => new Date(b) - new Date(a));
+
+  let streakCount = 0;
+  let currentDate = new Date();
+
+  for (let i = 0; i < dates.length; i++) {
+    const d = new Date(dates[i]);
+
+    if (d.toDateString() === currentDate.toDateString()) {
+      streakCount++;
+      currentDate.setDate(currentDate.getDate() - 1);
+    } else {
+      break;
+    }
   }
-}, [safeTransactions.length]);
+
+  setStreak(streakCount);
+}, [safeTransactions]);
 
 useEffect(() => {
 (Array.isArray(subscriptions) ? subscriptions : []).forEach((sub) => {
@@ -231,7 +303,10 @@ onClick={() => setDarkMode(!darkMode)}
 {/*Logout*/}
 <button
 className="bg-red-500 text-white px-3 py-1 rounded"
-onClick={() => setIsLoggedIn(false)}
+onClick={() => {
+  localStorage.removeItem("token");
+  setIsLoggedIn(false);
+}}
 >
 Logout
 </button>

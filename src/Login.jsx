@@ -7,7 +7,7 @@ function Login({ setIsLoggedIn }) {
 const handleLogin = async (e) => {
   e.preventDefault();
 
-  const API = "http://localhost:5000";
+const API = "http://localhost:5000";
 
   const cleanEmail = email.trim();
   const cleanPassword = password.trim();
@@ -26,7 +26,12 @@ const handleLogin = async (e) => {
     })
   });
 
-  const data = await res.json();
+  let data = [];
+try {
+  data = await res.json();
+} catch (err) {
+  console.error("Invalid JSON:", err);
+}
 
   if (res.ok) {
     localStorage.setItem("token", data.token);
